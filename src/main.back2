@@ -1,0 +1,88 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+function genTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 16;
+  canvas.height = 16;
+  const context = canvas.getContext('2d')!;
+  const gradient = context.createRadialGradient(
+    canvas.width / 2, canvas.height / 2, 0,
+    canvas.width / 2, canvas.height / 2, canvas.width / 2
+  );
+
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.1, 'rgba(170,0,255,0.3)');
+  gradient.addColorStop(0.2, 'rgba(244,37,0,1)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new THREE.Texture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+camera.position.z = 5;
+
+const pointCount = 100;
+const positions = new Float32Array(pointCount * 3);
+
+for (let i = 0; i < pointCount; i++) {
+  positions[i * 3] = (Math.random() - 0.5) * 5;
+  positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
+  positions[i * 3 + 2] = (Math.random() - 0.5) * 5;
+}
+
+const geometry = new THREE.BufferGeometry();
+geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+const material = new THREE.PointsMaterial({
+  size: 0.2,
+  map: genTexture(),
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+
+const points = new THREE.Points(geometry, material);
+scene.add(points);
+
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+
+  t += 0.02;
+  const pos = geometry.attributes.position.array as Float32Array;
+  for (let i = 0; i < pointCount; i++) {
+    
+  }
+  for (let i = 0; i < pointCount; i++) {
+    pos[i * 3    ] += (Math.random() - 0.5) * 0.12;
+    pos[i * 3 + 1] += (Math.random() - 0.5) * 0.02;
+    pos[i * 3 + 2] += (Math.random() - 0.5) * 0.02;
+  }
+  geometry.attributes.position.needsUpdate = true;
+
+  points.position.x = Math.sin(t) * 0.5;
+  points.position.y = Math.cos(t) * 0.5;
+  points.position.z = Math.sin(t) * 0.5;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+

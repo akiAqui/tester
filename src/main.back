@@ -1,0 +1,88 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+
+
+// Typescript: Define the renderer, scene, camera
+const scene: THREE.Scene = new THREE.Scene();
+const camera: THREE.PerspectiveCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.z = 5;
+
+
+const renderer: THREE.WebGLRenderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement)
+
+// Manage render targets
+const renderTargets: THREE.WebGLRenderTarget[] = [
+  new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight),
+  new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight),
+];
+let renderTargetIndex: number = 0;
+
+// Shader material
+const material: THREE.ShaderMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0.0 },
+    uPreviousFrame: { value: renderTargets[0].texture },
+    resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+  },
+vertexShader: `
+  uniform float uTime;
+  void main() {
+    vec3 transformed = position;
+
+    // 頂点の位置に応じて変位の符号を切り替える
+    float sign = (position.x * position.y > 0.0) ? 1.0 : -1.0;
+
+    transformed.x += sin(uTime + position.y) * 0.1;
+    transformed.z += sign * cos(uTime) * 0.4; // 符号を反転
+    //default
+    //  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
+  }
+`,
+  fragmentShader: `
+   uniform sampler2D uPreviousFrame;
+   uniform vec2 resolution;
+   void main() {
+     vec2 uv = gl_FragCoord.xy / resolution;
+     vec4 prevColor = texture2D(uPreviousFrame, uv);
+     vec4 newColor = vec4(1.0, 0.5, 0.0, 1.0);
+     gl_FragColor = vec4(max(prevColor.rgb, newColor.rgb), 1.0);
+  }
+`,
+  side: THREE.DoubleSide
+  
+});
+
+// Plane geometry and mesh
+const plane: THREE.PlaneGeometry = new THREE.PlaneGeometry(2, 2);
+const mesh: THREE.Mesh = new THREE.Mesh(plane, material);
+scene.add(mesh);
+
+// Animation loop
+const animate = (): void => {
+  　controls.update()
+  material.uniforms.uTime.value += 0.1;
+  
+  // Set the previous frame texture
+  material.uniforms.uPreviousFrame.value = renderTargets[renderTargetIndex].texture;
+  
+  // Render to the other render target
+  const nextTargetIndex: number = (renderTargetIndex + 1) % 2;
+  renderer.setRenderTarget(renderTargets[nextTargetIndex]);
+  renderer.render(scene, camera);
+  
+  // Render to screen
+  renderer.setRenderTarget(null);
+  renderer.render(scene, camera);
+  
+  // Swap render targets
+  renderTargetIndex = nextTargetIndex;
+  
+  requestAnimationFrame(animate);
+};
+animate();
+
